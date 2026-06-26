@@ -1,38 +1,35 @@
-# Cache Invalidation Exercise — How NOT to Work with Your Context to Badly Affect Caching
+# How to Burn Money & Latency: A Guide to Breaking Prompt Caching
 
-A mini tutorial and experimental harness demonstrating how prompting techniques, shared resources (instructions, agents, skills), MCP servers, CLI tools, and other context-handling choices impact **input token caching**.
+A hands-on experimental harness and tutorial exploring how prompting techniques, shared resources, and CLI tools impact **input token caching**.
 
-## Files
+## Core Components
 
-| File | Purpose |
+| Component | Description |
 |---|---|
-| `tutorial-plan.md` | Full tutorial plan: CLI capabilities, research, patterns, antipatterns, 12 experiments, analytics |
-| `setup.sh` | OTel setup, validation, and smoke test |
-| `analyze.py` | Parse OTel JSONL and compute cache analytics per experiment |
-| `compare.py` | Compare analytics across all experiments |
-| `exp2-cache-hit.sh` | Example: repeated identical prompts → cache hit |
-| `exp3-timestamp-invalidation.sh` | Example: dynamic timestamp in prefix → cache miss |
-| `exp6-multi-turn.sh` | Example: multi-turn conversation, append-only → cache preserved |
-| `exp13-hook-impact.sh` | Example: dynamic hook context (v1.0.65+) → cache miss |
-| `run-all.sh` | Run the example experiments and print a comparison table |
+| `tutorial-plan.md` | Deep dive into CLI capabilities, provider specifics, and 13 detailed experiments. |
+| `setup.sh` | Environmental validation and OTel smoke test. |
+| `analyze.py` | Extracts cache hit/miss analytics from OTel JSONL traces. |
+| `compare.py` | Generates a multi-experiment comparison report. |
+| `run-all.sh` | Executes the standard experiment suite (skipping high-latency tests). |
+| `ccusage-session.sh` | Wrapper for `ccusage` to get rich session-level cost/token reports. |
 
-## Experiment & Pattern Summary
+## Experiment Suite & Patterns
 
-| Pattern | Experiment | Description | Command |
+| Category | Pattern | Command | Key Lesson |
 |---|---|---|---|
-| **Baseline** | `exp1` | Establishes base token usage (no cache reuse) | `bash exp1-baseline.sh` |
-| **Cache Hit** | `exp2` | Identical prompts sent twice → 50% hit rate | `bash exp2-cache-hit.sh` |
-| **Timestamp Invalidation** | `exp3` | Dynamic content at start kills prefix | `bash exp3-timestamp-invalidation.sh` |
-| **Custom Instructions** | `exp4` | `AGENTS.md` adds stable (cacheable) tokens | `bash exp4-custom-instructions.sh` |
-| **MCP Impact** | `exp5` | Tool definitions are stable and cached | `bash exp5-mcp-impact.sh` |
-| **Multi-Turn Append** | `exp6` | Adding messages preserves prior prefix | `bash exp6-multi-turn.sh` |
-| **Model Switch** | `exp7` | Changing models resets the cache | `bash exp7-model-switch.sh` |
-| **Reasoning Effort** | `exp8` | Effort changes can invalidate cache | `bash exp8-reasoning-effort.sh` |
-| **Skills Impact** | `exp9` | Stable skills increase hits on large prompts | `bash exp9-skills-impact.sh` |
-| **Tool Execution** | `exp10` | Tool results become part of cached history | `bash exp10-tool-execution.sh` |
-| **TTL Expiry** | `exp11` | Cache clears after 5-10 mins of inactivity | `bash exp11-ttl-expiry.sh` |
-| **Cross-Model** | `exp12` | Compare Claude vs GPT vs Gemini behavior | `bash exp12-cross-model.sh` |
-| **Hook Impact** | `exp13` | `userPromptSubmitted` hook context stability | `bash exp13-hook-impact.sh` |
+| **Basics** | **Baseline** | `bash exp1-baseline.sh` | First call always creates the cache. |
+| | **Cache Hit** | `bash exp2-cache-hit.sh` | Identical prompts = ~50% input savings. |
+| | **TTL Expiry** | `bash exp11-ttl-expiry.sh` | Cache clears after ~5m of inactivity. |
+| **Invalidation** | **Timestamp** | `bash exp3-timestamp-invalidation.sh` | Dynamic content at start kills the prefix. |
+| | **Model Switch** | `bash exp7-model-switch.sh` | Different model = different cache namespace. |
+| | **Effort Change** | `bash exp8-reasoning-effort.sh` | Reasoning changes can reset prefix compute. |
+| | **Hook Context** | `bash exp13-hook-impact.sh` | Dynamic hook context (v1.0.65+) breaks prefix. |
+| **Growth** | **Instructions** | `bash exp4-custom-instructions.sh` | `AGENTS.md` adds stable, cached tokens. |
+| | **MCP / Tools** | `bash exp5-mcp-impact.sh` | Tool definitions are stable and cached. |
+| | **Skills** | `exp9-skills-impact.sh` | Large skill files increase cached density. |
+| **Session** | **Multi-Turn** | `bash exp6-multi-turn.sh` | Appending preserves the prior prefix. |
+| | **Tool Usage** | `exp10-tool-execution.sh` | Tool results become part of cached history. |
+| **Benchmarks** | **Cross-Model** | `exp12-cross-model.sh` | Compare Claude vs GPT vs Gemini behavior. |
 
 ## Quick Start
 

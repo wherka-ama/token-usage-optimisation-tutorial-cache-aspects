@@ -32,4 +32,4 @@ for exp in "${EXPERIMENTS[@]}"; do
 done
 
 # Generate comparison table
-python3 compare.py "$RESULTS_DIR"
+python3 compare.py "$EXPERIMENT_DIR/otel"
