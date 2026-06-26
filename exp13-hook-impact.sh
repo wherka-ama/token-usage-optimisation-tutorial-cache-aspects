@@ -31,14 +31,14 @@ PROMPT="Explain the importance of prefix stability for LLM caching."
 
 # Call 1 — hook injects timestamp A
 echo "Running Call 1 (hook timestamp A)..."
-copilot -p "$PROMPT" --model claude-sonnet-4.6 --output-format json --silent \
+copilot -p "$PROMPT" --model "$COPILOT_MODEL" --output-format json --silent \
   --no-custom-instructions --disable-builtin-mcps --yolo 2>/dev/null
 
 sleep 2
 
 # Call 2 — hook injects timestamp B (prefix changes!)
 echo "Running Call 2 (hook timestamp B)..."
-copilot -p "$PROMPT" --model claude-sonnet-4.6 --output-format json --silent \
+copilot -p "$PROMPT" --model "$COPILOT_MODEL" --output-format json --silent \
   --no-custom-instructions --disable-builtin-mcps --yolo 2>/dev/null
 
 python3 analyze.py "$COPILOT_OTEL_FILE_EXPORTER_PATH" "Exp13: Dynamic hook context"

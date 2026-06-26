@@ -8,6 +8,10 @@ export COPILOT_OTEL_EXPORTER_TYPE=file
 export EXPERIMENT_DIR="$HOME/cache-experiments"
 mkdir -p "$EXPERIMENT_DIR/otel" "$EXPERIMENT_DIR/results" "$EXPERIMENT_DIR/scripts"
 
+# Default model if not set by environment
+export COPILOT_MODEL="${COPILOT_MODEL:-claude-sonnet-4.6}"
+echo "Using model: $COPILOT_MODEL"
+
 # Default OTel path for smoke test; experiments will override this
 export COPILOT_OTEL_FILE_EXPORTER_PATH="$EXPERIMENT_DIR/otel/copilot-otel-smoke.jsonl"
 

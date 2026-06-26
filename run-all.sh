@@ -7,9 +7,18 @@ set -euo pipefail
 source ./setup.sh
 
 EXPERIMENTS=(
+  "exp1-baseline.sh"
   "exp2-cache-hit.sh"
   "exp3-timestamp-invalidation.sh"
+  "exp4-custom-instructions.sh"
+  "exp5-mcp-impact.sh"
   "exp6-multi-turn.sh"
+  "exp7-model-switch.sh"
+  "exp8-reasoning-effort.sh"
+  "exp9-skills-impact.sh"
+  "exp10-tool-execution.sh"
+  # "exp11-ttl-expiry.sh" # Excluded by default due to 6m wait
+  "exp12-cross-model.sh"
   "exp13-hook-impact.sh"
 )
 
