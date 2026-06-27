@@ -6,16 +6,21 @@ set -euo pipefail
 source ./setup.sh
 setup_otel "exp3-timestamp"
 
-# Call 1 — with a dynamic prefix (timestamp). This simulates a "Today is..." injection
-# at the start of the system prompt or user context.
-copilot -p "Current time context: $(date -u +%H:%M:%S). Explain eventual consistency in distributed systems in 3 paragraphs." \
+# Define a large stable context block to amplify the impact
+LARGE_CONTEXT=$(printf 'Repeat this stable context to fill space. %.0s' {1..200})
+
+# Call 1 — with a dynamic prefix (timestamp).
+echo "Running Call 1 (Timestamp A)..."
+copilot -p "Today is $(date -u +%H:%M:%S). Context: $LARGE_CONTEXT. Explain eventual consistency." \
   --model "$COPILOT_MODEL" --output-format json --silent \
   --no-custom-instructions --disable-builtin-mcps --yolo 2>/dev/null
 
-sleep 2  # Small delay to ensure the timestamp changes
+sleep 2
 
-# Call 2 — the only difference is the timestamp, so the prefix no longer matches
-copilot -p "Current time context: $(date -u +%H:%M:%S). Explain eventual consistency in distributed systems in 3 paragraphs." \
+# Call 2 — the only difference is the timestamp at the VERY BEGINNING.
+# This should cause the ENTIRE large context block to be re-processed (cache miss).
+echo "Running Call 2 (Timestamp B - should break cache for the large block)..."
+copilot -p "Today is $(date -u +%H:%M:%S). Context: $LARGE_CONTEXT. Explain eventual consistency." \
   --model "$COPILOT_MODEL" --output-format json --silent \
   --no-custom-instructions --disable-builtin-mcps --yolo 2>/dev/null
 

@@ -22,12 +22,19 @@ def load_analytics(results_dir: str) -> list[dict]:
 
 def print_comparison_table(results: list[dict]):
     """Print a markdown comparison table."""
+    # Sort results by filename to keep experiments in order
+    results.sort(key=lambda x: x.get("source_file", ""))
+
     print("\n## Cache Invalidation Experiment Results\n")
     print("| Experiment | LLM Calls | Input Tokens | Cache Read | Cache Creation | Hit Rate |")
     print("|---|---|---|---|---|---|")
 
     for r in results:
-        label = r.get("source_file", "unknown").replace("-analytics.json", "")
+        # Clean up the filename for a prettier label
+        # e.g., exp2-cache-hit-20260627-004706-analytics.json -> exp2-cache-hit
+        filename = r.get("source_file", "unknown")
+        label = filename.split("-202")[0] if "-202" in filename else filename.replace("-analytics.json", "")
+        
         calls = r.get("total_llm_calls", 0)
         input_tok = r.get("total_input_tokens", 0)
         cache_read = r.get("total_cache_read_tokens", 0)

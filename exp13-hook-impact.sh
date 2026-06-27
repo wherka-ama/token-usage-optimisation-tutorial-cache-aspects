@@ -27,7 +27,9 @@ cat > .github/copilot-hooks.json << 'EOF'
 EOF
 
 setup_otel "exp13-hook-impact"
-PROMPT="Explain the importance of prefix stability for LLM caching."
+# Define a large stable context block to amplify the impact
+LARGE_CONTEXT=$(printf 'Repeat this stable context to fill space. %.0s' {1..200})
+PROMPT="Context: $LARGE_CONTEXT. Explain the importance of prefix stability."
 
 # Call 1 — hook injects timestamp A
 echo "Running Call 1 (hook timestamp A)..."

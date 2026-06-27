@@ -138,10 +138,15 @@ def print_report(analytics: dict, label: str = ""):
     print(f"  Total LLM calls:          {analytics['total_llm_calls']}")
     print(f"  Total input tokens:       {analytics['total_input_tokens']:,}")
     print(f"  Total output tokens:      {analytics['total_output_tokens']:,}")
-    print(f"  Cache READ tokens:        {analytics['total_cache_read_tokens']:,}")
-    print(f"  Cache CREATION tokens:    {analytics['total_cache_creation_tokens']:,}")
+    print(f"  Cache READ tokens:        {analytics['total_cache_read_tokens']:,} (HIT)")
+    print(f"  Cache CREATION tokens:    {analytics['total_cache_creation_tokens']:,} (MISS/WRITE)")
     print(f"  Uncached input tokens:    {analytics['total_uncached_input_tokens']:,}")
     print(f"  Overall cache hit rate:   {analytics['overall_cache_hit_rate']:.1%}")
+
+    if analytics['overall_cache_hit_rate'] > 0.5 and "invalidation" in (label or "").lower():
+        print("\n  [!] NOTE: High hit rate on an invalidation test suggests a large")
+        print("      shared system prefix (e.g. skills) is still being cached.")
+
     print(f"{'-' * 70}")
     print(f"  Per-model breakdown:")
     for model, data in analytics["by_model"].items():

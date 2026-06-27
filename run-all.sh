@@ -6,6 +6,11 @@ set -euo pipefail
 # Ensure OTel is set up and working
 source ./setup.sh
 
+# Clear previous experiment data for a clean report
+rm -rf "$EXPERIMENT_DIR/otel"/*.jsonl
+rm -rf "$EXPERIMENT_DIR/otel"/*.json
+mkdir -p "$EXPERIMENT_DIR/otel"
+
 EXPERIMENTS=(
   "exp1-baseline.sh"
   "exp2-cache-hit.sh"
