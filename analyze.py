@@ -132,9 +132,12 @@ def compute_analytics(spans: list[dict]) -> dict:
 
 def print_report(analytics: dict, label: str = ""):
     """Print a human-readable analytics report."""
+    isolation_status = os.environ.get("COPILOT_ISOLATION", "unknown")
+    
     print(f"\n{'=' * 70}")
     print(f"  CACHE ANALYTICS REPORT{' — ' + label if label else ''}")
-    print(f"{'=' * 70}")
+    print(f"  Isolation Mode: {isolation_status.upper()}")
+    print("=" * 70)
     print(f"  Total LLM calls:          {analytics['total_llm_calls']}")
     print(f"  Total input tokens:       {analytics['total_input_tokens']:,}")
     print(f"  Total output tokens:      {analytics['total_output_tokens']:,}")

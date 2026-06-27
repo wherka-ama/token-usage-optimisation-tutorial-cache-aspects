@@ -4,9 +4,39 @@
 set -euo pipefail
 
 export COPILOT_OTEL_ENABLED=true
-export COPILOT_OTEL_EXPORTER_TYPE=file
-export EXPERIMENT_DIR="$HOME/cache-experiments"
-mkdir -p "$EXPERIMENT_DIR/otel" "$EXPERIMENT_DIR/results" "$EXPERIMENT_DIR/scripts"
+# Ensure we have the REAL home path for data storage
+# If setup.sh was already sourced, REAL_HOME is already set.
+export REAL_HOME="${REAL_HOME:-$HOME}"
+
+# Always store data in the real home to avoid nesting
+export EXPERIMENT_DIR="$REAL_HOME/cache-experiments"
+mkdir -p "$EXPERIMENT_DIR/otel" "$EXPERIMENT_DIR/results" "$EXPERIMENT_DIR/scripts" "$EXPERIMENT_DIR/.tmp"
+
+# Isolation Mode (default: true)
+export COPILOT_ISOLATION="${COPILOT_ISOLATION:-true}"
+
+if [ "$COPILOT_ISOLATION" = "true" ]; then
+  # Use a stable path for isolated config
+  export COPILOT_HOME="$EXPERIMENT_DIR/.tmp/isolated-copilot-home"
+  mkdir -p "$COPILOT_HOME"
+  
+  # Redirect HOME so the CLI doesn't find ~/.agents or ~/.copilot personal skills
+  export HOME="$COPILOT_HOME/fake-home"
+  mkdir -p "$HOME"
+
+  # Maintain auth by copying settings.json if it exists
+  if [ -f "$REAL_HOME/.copilot/settings.json" ] && [ ! -f "$COPILOT_HOME/settings.json" ]; then
+    cp "$REAL_HOME/.copilot/settings.json" "$COPILOT_HOME/settings.json"
+  fi
+  
+  # Clear additional resource paths
+  export COPILOT_CUSTOM_INSTRUCTIONS_DIRS=""
+  export COPILOT_SKILLS_DIRS=""
+  
+  echo "Experiment Isolation: ENABLED (Data in $EXPERIMENT_DIR, CLI HOME in $HOME)"
+else
+  echo "Experiment Isolation: DISABLED (using system/user configuration)"
+fi
 
 # Default model if not set by environment
 export COPILOT_MODEL="${COPILOT_MODEL:-claude-sonnet-4.6}"

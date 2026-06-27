@@ -43,7 +43,13 @@ A hands-on experimental harness and tutorial exploring how prompting techniques,
    ```bash
    source ./setup.sh
    ```
-   This exports `COPILOT_OTEL_ENABLED=true`, `COPILOT_OTEL_EXPORTER_TYPE=file`, and `COPILOT_OTEL_FILE_EXPORTER_PATH`, then verifies that spans are written.
+
+### Experiment Isolation (Recommended)
+
+By default, the harness enables **Experiment Isolation**. This ensures that your personal Copilot skills, custom instructions, and MCP configurations (stored in `~/.copilot`) do not bias the token usage results.
+
+- **Enabled (Default):** Sets a temporary `COPILOT_HOME`, unsets `COPILOT_SKILLS_DIRS`, etc.
+- **Toggle:** `export COPILOT_ISOLATION=false` before sourcing `setup.sh` to use your system config.
 
 3. Run a single experiment:
    ```bash
