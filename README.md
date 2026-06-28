@@ -12,6 +12,8 @@ A hands-on experimental harness and tutorial exploring how prompting techniques,
 | `compare.py` | Generates a multi-experiment comparison report. |
 | `run-all.sh` | Executes the standard experiment suite (skipping high-latency tests). |
 | `ccusage-session.sh` | Wrapper for `ccusage` to get rich session-level cost/token reports. |
+| `presentation-outline.md` | Skeleton for a 20–25 min presentation (caching + routing). |
+| `cache-best-practices.md` | Quickcard with side-by-side best/worst practice examples. |
 
 ## Experiment Suite & Patterns
 
