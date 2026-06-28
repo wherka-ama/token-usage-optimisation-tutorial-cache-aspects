@@ -6,11 +6,13 @@ A hands-on experimental harness and tutorial exploring how prompting techniques,
 
 | Component | Description |
 |---|---|
-| `tutorial-plan.md` | Deep dive into CLI capabilities, provider specifics, and 13 detailed experiments. |
+| `tutorial-plan.md` | Deep dive into CLI capabilities, provider specifics, academic grounding, and 17 detailed experiments. |
 | `setup.sh` | Environmental validation and OTel smoke test. |
 | `analyze.py` | Extracts cache hit/miss analytics from OTel JSONL traces. |
-| `compare.py` | Generates a multi-experiment comparison report. |
+| `compare.py` | Generates a multi-experiment comparison report with token cost estimates and best-practice gain/loss analysis. |
 | `run-all.sh` | Executes the standard experiment suite (skipping high-latency tests). |
+| `run-multi-model.sh` | Runs all experiments across multiple models; produces per-model and combined sky-view reports. |
+| `discover-models.sh` | Probes Copilot CLI to discover which models are currently available. |
 | `ccusage-session.sh` | Wrapper for `ccusage` to get rich session-level cost/token reports. |
 | `presentation-outline.md` | Skeleton for a 20–25 min presentation (caching + routing). |
 | `cache-best-practices.md` | Quickcard with side-by-side best/worst practice examples. |
@@ -26,12 +28,16 @@ A hands-on experimental harness and tutorial exploring how prompting techniques,
 | | **Model Switch** | `bash exp7-model-switch.sh` | Different model = different cache namespace. |
 | | **Effort Change** | `bash exp8-reasoning-effort.sh` | Reasoning changes can reset prefix compute. |
 | | **Hook Context** | `bash exp13-hook-impact.sh` | Dynamic hook context (v1.0.65+) breaks prefix. |
+| | **Dynamic Tail** | `bash exp14-dynamic-tail-mitigation.sh` | Moving dynamic data to the end preserves the stable prefix. |
+| | **RAG Ordering** | `bash exp15-rag-ordering.sh` | Relevance-order churn breaks reuse; stable IDs preserve it. |
+| | **Schema Canonicalization** | `bash exp16-schema-canonicalization.sh` | Semantically identical JSON can miss cache if byte order changes. |
 | **Growth** | **Instructions** | `bash exp4-custom-instructions.sh` | `AGENTS.md` adds stable, cached tokens. |
 | | **MCP / Tools** | `bash exp5-mcp-impact.sh` | Tool definitions are stable and cached. |
 | | **Skills** | `exp9-skills-impact.sh` | Large skill files increase cached density. |
 | **Session** | **Multi-Turn** | `bash exp6-multi-turn.sh` | Appending preserves the prior prefix. |
 | | **Tool Usage** | `exp10-tool-execution.sh` | Tool results become part of cached history. |
 | **Benchmarks** | **Cross-Model** | `exp12-cross-model.sh` | Compare Claude vs GPT vs Gemini behavior. |
+| | **Semantic Thresholds** | `python3 exp17-semantic-threshold-simulation.py` | Static semantic thresholds trade hit rate against false positives. |
 
 ## Quick Start
 
@@ -68,7 +74,28 @@ By default, the harness enables **Experiment Isolation**. This ensures that your
    python3 analyze.py "$HOME/cache-experiments/otel/exp2-cache-hit-*.jsonl"
    ```
 
-6. (Optional) Cross-check with `ccusage` via `npx`:
+6. Run all experiments with cost estimates and gain/loss analysis:
+   ```bash
+   bash run-all.sh
+   # compare.py now outputs per-experiment token costs, per-model summary,
+   # and best-practice gain/loss analysis grounded in actual benchmark data
+   ```
+
+7. Discover available Copilot models:
+   ```bash
+   bash discover-models.sh
+   bash discover-models.sh --json   # JSON array output
+   bash discover-models.sh --save models.txt
+   ```
+
+8. Run benchmarks across multiple models with sky-view comparison:
+   ```bash
+   bash run-multi-model.sh claude-sonnet-4.6 gpt-5.4 gemini-3.5-flash
+   # or: bash run-multi-model.sh $(bash discover-models.sh)
+   # Output: $HOME/cache-experiments/results/multi-model/sky-view-comparison.md
+   ```
+
+9. (Optional) Cross-check with `ccusage` via `npx`:
    ```bash
    npx ccusage@latest copilot session
    npx ccusage@latest copilot session --json
@@ -81,16 +108,50 @@ By default, the harness enables **Experiment Isolation**. This ensures that your
 - `cache_read_input_tokens` / `cache_read` — tokens served from cache (cache HIT)
 - `cache_creation_input_tokens` / `cache_creation` — tokens written to cache (cache WRITE)
 - `overall_cache_hit_rate` — fraction of input tokens that were cache reads across all calls
+- `Est. Cost (USD)` — approximate cost based on per-token pricing (override with `--pricing`)
+- `No-Cache Cost` — what the same tokens would cost with zero caching
+- `Savings` — delta between actual cost and no-cache cost (the value of caching)
+
+## Cost Estimation & Best-Practice Gain/Loss
+
+`compare.py` now provides three analysis layers:
+
+1. **Per-experiment token cost** — estimates USD cost per experiment using default or custom pricing, with a no-cache baseline for comparison.
+2. **Per-model summary** — aggregates token usage and cost by model across all experiments.
+3. **Best-practice gain/loss** — pairs anti-pattern experiments with their best-practice counterparts to show the estimated cost impact of each practice, grounded in actual benchmark data.
+
+Custom pricing file format (per 1M tokens, USD):
+```json
+{"claude-sonnet-4.6": {"input": 3.0, "cached_read": 0.30, "cached_write": 3.75, "output": 15.0}}
+```
+```bash
+python3 compare.py $HOME/cache-experiments/otel --pricing my-pricing.json
+```
+
+## Multi-Model Benchmarking
+
+`run-multi-model.sh` runs the full experiment suite across multiple models sequentially and produces:
+
+- **Per-model reports** — each model gets its own `report.md` with token usage, cost estimates, and gain/loss analysis.
+- **Sky-view comparison** — a combined cross-model report showing hit rates, token counts, and cost estimates side by side, so you can verify whether caching assumptions hold across providers.
+
+```bash
+bash run-multi-model.sh claude-sonnet-4.6 gpt-5.4 gemini-3.5-flash
+```
+
+Output location: `$HOME/cache-experiments/results/multi-model/`
 
 ## Key Takeaways
 
-- Caching is prefix-based and byte-for-byte exact.
+- Caching is prefix-based and practically byte-for-byte exact for shared prefixes.
 - Place stable content at the **beginning** of the prompt; dynamic content at the **end**.
-- Tools, system instructions, and MCP servers are all part of the cached prefix.
+- Tools, system instructions, MCP servers, retrieved context, and schemas can all become part of the cached prefix.
+- Canonicalize ordering for tools, JSON schemas, and RAG chunks.
 - Pin model versions; model switches invalidate cache.
 - Keep calls within the cache TTL (5 min default for Anthropic; 5–10 min default for OpenAI).
 - Append, don't modify, in multi-turn conversations.
+- Treat semantic caching as an approximate optimization unless it has verification/error guarantees.
 
 ## Sources
 
-All sources are documented in `tutorial-plan.md` under **Part 2.6 Sources**.
+All sources are documented in `tutorial-plan.md` under **Part 2.6 Sources** and the academic research corpus under `research/`. Provider-specific TTL/pricing details are separated from academic claims in the tutorial plan.

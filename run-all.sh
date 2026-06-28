@@ -25,6 +25,9 @@ EXPERIMENTS=(
   # "exp11-ttl-expiry.sh" # Excluded by default due to 6m wait
   "exp12-cross-model.sh"
   "exp13-hook-impact.sh"
+  "exp14-dynamic-tail-mitigation.sh"
+  "exp15-rag-ordering.sh"
+  "exp16-schema-canonicalization.sh"
 )
 
 RESULTS_DIR="$HOME/cache-experiments/results"
@@ -38,3 +41,6 @@ done
 
 # Generate comparison table
 python3 compare.py "$EXPERIMENT_DIR/otel"
+
+# Run offline semantic-cache simulation
+python3 exp17-semantic-threshold-simulation.py | tee "$RESULTS_DIR/exp17-semantic-threshold-simulation-output.txt"

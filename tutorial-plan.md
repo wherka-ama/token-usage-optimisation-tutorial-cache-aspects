@@ -280,9 +280,9 @@ copilot -p "..." --output-format json
 
 ### 2.1 How Prompt Caching Works (Fundamentals)
 
-Prompt caching stores the **computed key/value (KV) tensors** — the intermediate representation from the model's attention layers produced during prefill — so they can be reused on the next inference step. **No raw text is stored; only numerical tensors.**
+Prompt caching stores the **computed key/value (KV) tensors** — the intermediate representation from the model's attention layers produced during prefill — so they can be reused on later requests with the same prefix. Mechanistically, this is tensor reuse rather than response replay; it should not be confused with provider data-retention guarantees.
 
-The cache is keyed on the **exact byte-for-byte prefix** of the prompt. Any change to the prefix — even a single character — invalidates the cache from that point forward.
+In practical provider and serving-system implementations, reuse depends on a **stable serialized/tokenized prefix**. Treat it as byte-for-byte exact in your prompt assembly code: any change to the prefix — even a single character, reordered JSON key, or shuffled retrieved chunk — can invalidate the cache from that point forward.
 
 **The cache hierarchy (Anthropic):** `tools → system → messages`. Changes at each level invalidate that level and all subsequent levels.
 
@@ -471,6 +471,14 @@ The cache is keyed on the **exact byte-for-byte prefix** of the prompt. Any chan
 | **Prompt cache fingerprinting** | Application-level | Hash prefix bytes; log hash with every request; diff when hits should occur but don't |
 
 ### 2.6 Sources
+
+**Academic grounding (from `research/`):**
+- KV/prefix mechanics: Luo et al. KV cache survey (`research/chapters/ch03-kv-cache-mechanisms.md`), PagedAttention, SGLang/RadixAttention, LMCache.
+- Prompt caching for agentic workloads: `Don't Break the Cache` (`arXiv:2601.06007`), summarized in `research/chapters/ch04-prompt-and-prefix-caching.md`.
+- Agentic workflow caching: Agentic Plan Caching, CacheTTL, KVFlow, Pythia, PBKV, CacheRL, summarized in `research/chapters/ch06-harness-and-tooling-caching.md` and `research/chapters/ch08-agentic-behaviour.md`.
+- Semantic caching correctness: vCache, MeanCache, Krites, temporal semantic caching, summarized in `research/chapters/ch05-semantic-caching.md`.
+- Cache-preserving routing: HyDRA plus RouteLLM/OmniRouter/Cascade Routing context, summarized in `research/chapters/ch11-model-routing-and-caching.md`.
+- Reliability/security caveats: numerical nondeterminism, batch-invariant kernels, LLM-42, PROMPTPEEK, KV-Cloak, KV-Shield, summarized in `research/chapters/ch02-reliability-and-reproducibility.md` and `research/chapters/ch10-security-and-privacy.md`.
 
 **Provider documentation (primary):**
 - OpenAI Prompt Caching: https://developers.openai.com/api/docs/guides/prompt-caching
@@ -1383,6 +1391,54 @@ rm -rf .github/hooks .github/copilot-hooks.json
 
 ---
 
+#### Experiment 14: Dynamic Tail Mitigation
+
+**Goal:** Show the positive counterpart to Experiment 3: dynamic content is much less harmful when moved behind a large stable prefix.
+
+**Script:** `bash exp14-dynamic-tail-mitigation.sh`
+
+**Expected result:** Phase A (dynamic prefix) should show low reuse for the large context. Phase B (dynamic suffix) should preserve cache reuse for the stable context prefix.
+
+**Teaching point:** The recommendation is not merely "remove all dynamic content." It is: keep stable content first, and isolate dynamic values after the stable cacheable prefix.
+
+---
+
+#### Experiment 15: RAG Ordering
+
+**Goal:** Demonstrate how relevance-order churn in retrieved chunks can break prompt-prefix reuse, while deterministic ordering by stable chunk IDs preserves it.
+
+**Script:** `bash exp15-rag-ordering.sh`
+
+**Expected result:** The unstable ordering phase should miss or reduce cache reuse; the stable ordering phase should show a second-call cache hit.
+
+**Teaching point:** RAG systems should avoid placing non-deterministically ordered retrieved chunks before otherwise reusable prefix content. If retrieved context must be cached, canonicalize its order.
+
+---
+
+#### Experiment 16: Schema Canonicalization
+
+**Goal:** Show that semantically equivalent JSON/tool schemas can miss the cache when serialized with different key or tool order.
+
+**Script:** `bash exp16-schema-canonicalization.sh`
+
+**Expected result:** Shuffled schemas should reduce reuse; canonical schema serialization should allow the second call to reuse the prefix.
+
+**Teaching point:** Tool definitions and JSON schemas are bytes in the prompt prefix. Use canonical serialization and stable tool ordering.
+
+---
+
+#### Experiment 17: Semantic Threshold Simulation
+
+**Goal:** Provide an offline exercise showing why static semantic-cache thresholds trade hit rate against false positives.
+
+**Script:** `python3 exp17-semantic-threshold-simulation.py`
+
+**Expected result:** Lower thresholds produce more hits but also false hits for parameter-rich, temporal, or tool-result-sensitive queries. Higher thresholds reduce false positives but miss safe paraphrases.
+
+**Teaching point:** Semantic caching is not the same as prefix caching. For approximate matches, use verified/adaptive approaches (vCache/Krites), temporal classifiers, or task-level caches rather than a global threshold alone.
+
+---
+
 ### 3.5 Analytics and Comparison
 
 #### Running all experiments and generating a comparison report:
@@ -1405,6 +1461,9 @@ EXPERIMENTS=(
   # exp11-ttl-expiry.sh excluded from quick run (6 min wait)
   "exp12-cross-model.sh"
   "exp13-hook-impact.sh"
+  "exp14-dynamic-tail-mitigation.sh"
+  "exp15-rag-ordering.sh"
+  "exp16-schema-canonicalization.sh"
 )
 
 RESULTS_DIR="$HOME/cache-experiments/results"
@@ -1416,7 +1475,10 @@ for exp in "${EXPERIMENTS[@]}"; do
 done
 
 # Generate comparison table
-python3 compare.py "$RESULTS_DIR"
+python3 compare.py "$EXPERIMENT_DIR/otel"
+
+# Run offline semantic-cache simulation
+python3 exp17-semantic-threshold-simulation.py | tee "$RESULTS_DIR/exp17-semantic-threshold-simulation-output.txt"
 ```
 
 #### Comparison script:
@@ -1492,6 +1554,10 @@ if __name__ == "__main__":
 | Exp11: TTL expiry | 0% after 6 min | Cache expires after TTL |
 | Exp12: Cross-model | Varies by provider | Different providers, different caching |
 | Exp13: Hook impact | 0% | Dynamic hook context breaks prefix |
+| Exp14: Dynamic tail | Prefix phase low; suffix phase higher | Dynamic content belongs after stable cacheable content |
+| Exp15: RAG ordering | Unstable low; stable higher | Deterministic chunk ordering preserves reuse |
+| Exp16: Schema canonicalization | Shuffled low; canonical higher | Canonical JSON/tool ordering preserves reuse |
+| Exp17: Semantic thresholds | Offline precision/recall table | Static thresholds trade hits against false positives |
 
 ### 3.7 Tutorial Delivery Outline
 
@@ -1515,8 +1581,9 @@ if __name__ == "__main__":
    - Optional: `ccusage` for richer reports
 
 5. **Live Experiments (25–30 min)**
-   - Run Experiments 1–6, 7–10, 12, 13 (skip 11 due to time)
-   - Show real-time analytics after each
+   - Run Experiments 1–6, 7–10, 12–16 (skip 11 due to time)
+   - Run Experiment 17 offline to discuss semantic-cache correctness
+   - Show real-time analytics after each live experiment
    - Discuss results and lessons
 
 6. **Patterns & Antipatterns Summary (5 min)**
@@ -1533,11 +1600,13 @@ if __name__ == "__main__":
 
 ### 3.8 Key Takeaways for Audience
 
-1. **Cache is prefix-based and byte-for-byte** — any change invalidates from that point
+1. **Cache is prefix-based and practically byte-for-byte** — any prefix change can invalidate reuse
 2. **Stable content first, dynamic content last** — the golden rule
-3. **Tools, system prompt, and instructions are all part of the cached prefix**
-4. **Pin your model version** — model switches reset cache
-5. **Keep calls within TTL** — 5 min default, 1h or 24h options available
-6. **Append, don't modify** — in multi-turn, never edit earlier messages
-7. **Monitor cache hit rate** — it's a first-class production metric
-8. **Use diagnostic tools** — Anthropic cache diagnostics, cachelens, OTel telemetry
+3. **Tools, system prompt, instructions, schemas, and retrieved context can all be part of the cached prefix**
+4. **Canonicalize ordering** — stable JSON, stable tool lists, stable RAG chunk order
+5. **Pin your model version** — model switches reset cache
+6. **Keep calls within TTL** — 5 min default, 1h or 24h options available depending on provider
+7. **Append, don't modify** — in multi-turn, never edit earlier messages
+8. **Treat semantic caching as approximate unless verified** — static thresholds can false-hit
+9. **Monitor cache hit rate** — it's a first-class production metric
+10. **Use diagnostic tools** — Anthropic cache diagnostics, cachelens, OTel telemetry

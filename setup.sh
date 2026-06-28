@@ -1,15 +1,20 @@
 #!/bin/bash
 # setup.sh — Prepare environment for cache invalidation experiments
 
-set -euo pipefail
+# Only enable strict mode when executed directly, not when sourced
+# (sourcing should not modify the caller's shell options)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  set -euo pipefail
+fi
 
 export COPILOT_OTEL_ENABLED=true
+export COPILOT_OTEL_EXPORTER_TYPE=file
 # Ensure we have the REAL home path for data storage
 # If setup.sh was already sourced, REAL_HOME is already set.
 export REAL_HOME="${REAL_HOME:-$HOME}"
 
-# Always store data in the real home to avoid nesting
-export EXPERIMENT_DIR="$REAL_HOME/cache-experiments"
+# Use override if set (for multi-model benchmarks), otherwise default to real home
+export EXPERIMENT_DIR="${EXPERIMENT_DIR_OVERRIDE:-$REAL_HOME/cache-experiments}"
 mkdir -p "$EXPERIMENT_DIR/otel" "$EXPERIMENT_DIR/results" "$EXPERIMENT_DIR/scripts" "$EXPERIMENT_DIR/.tmp"
 
 # Isolation Mode (default: true)
@@ -57,15 +62,15 @@ setup_otel() {
 validate_otel() {
   if [[ -z "${COPILOT_OTEL_ENABLED:-}" || "$COPILOT_OTEL_ENABLED" != "true" ]]; then
     echo "ERROR: COPILOT_OTEL_ENABLED is not set to true" >&2
-    exit 1
+    return 1
   fi
   if [[ -z "${COPILOT_OTEL_EXPORTER_TYPE:-}" || "$COPILOT_OTEL_EXPORTER_TYPE" != "file" ]]; then
     echo "ERROR: COPILOT_OTEL_EXPORTER_TYPE is not set to file" >&2
-    exit 1
+    return 1
   fi
   if [[ -z "${COPILOT_OTEL_FILE_EXPORTER_PATH:-}" ]]; then
     echo "ERROR: COPILOT_OTEL_FILE_EXPORTER_PATH is not set" >&2
-    exit 1
+    return 1
   fi
 }
 
@@ -77,19 +82,28 @@ smoke_test_otel() {
 
   if [[ ! -f "$COPILOT_OTEL_FILE_EXPORTER_PATH" ]]; then
     echo "ERROR: OTel file was not created after smoke test" >&2
-    exit 1
+    return 1
   fi
 
   local span_count
   span_count=$(grep -c '"type":"span"' "$COPILOT_OTEL_FILE_EXPORTER_PATH" 2>/dev/null || true)
   if [[ "$span_count" -eq 0 ]]; then
     echo "ERROR: OTel file has no span entries after smoke test" >&2
-    exit 1
+    return 1
   fi
 
   echo "OTel smoke test passed: $span_count span(s) written to $COPILOT_OTEL_FILE_EXPORTER_PATH"
 }
 
 # Run validations at startup
-validate_otel
-smoke_test_otel
+# Use return (sourced-safe) with exit fallback for direct execution
+if ! validate_otel; then
+  return 1 2>/dev/null || exit 1
+fi
+# Skip smoke test if explicitly requested (e.g., multi-model benchmarks
+# where the smoke test has already been run once)
+if [[ "${COPILOT_SKIP_SMOKE_TEST:-false}" != "true" ]]; then
+  if ! smoke_test_otel; then
+    return 1 2>/dev/null || exit 1
+  fi
+fi

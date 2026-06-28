@@ -103,6 +103,56 @@ copilot --prompt "Help me refactor this function"
 - Hook-injected dynamic content at the start kills the cache.
 - *See Experiment 13 (Hook Impact).*
 
+### 6. RAG and Retrieved Context
+
+**BEST (Stable Ordering):**
+```
+[Stable system prompt]
+[Retrieved chunks sorted by document_id]
+[Current user query]
+```
+- Stable chunk ordering preserves the shared prefix across similar queries.
+- *See Experiment 15 (RAG Ordering).*
+
+**WORST (Relevance-Order Churn):**
+```
+[Stable system prompt]
+[Retrieved chunks sorted by floating relevance score]
+[Current user query]
+```
+- Similar queries can reorder chunks, changing bytes near the prefix and reducing reuse.
+
+### 7. Tool Schemas and JSON
+
+**BEST (Canonical Serialization):**
+```json
+{"tools":[{"description":"Read a file","name":"read_file"}]}
+```
+- Sort tool lists and schema keys deterministically.
+- *See Experiment 16 (Schema Canonicalization).*
+
+**WORST (Semantically Same, Byte-Different):**
+```json
+{"tools":[{"name":"read_file","description":"Read a file"}]}
+```
+- Same meaning, different byte order: enough to change the cacheable prefix.
+
+### 8. Semantic Caching
+
+**BEST (Verified or Scoped):**
+```
+Use verified/adaptive semantic caching for low-risk paraphrases.
+Bypass semantic cache for temporal, safety-critical, or parameter-rich tool queries.
+```
+- vCache/Krites-style verification and temporal classifiers reduce false positives.
+- *See Experiment 17 (Semantic Threshold Simulation).*
+
+**WORST (One Global Threshold):**
+```
+if cosine_similarity(query, cached_query) > 0.80: return cached_response
+```
+- Static thresholds can false-hit on dates, IDs, live data, file paths, or tool parameters.
+
 ---
 
 ## Do's vs. Don'ts Summary
@@ -115,6 +165,9 @@ copilot --prompt "Help me refactor this function"
 | **Model Versions** | Pin to a specific version (e.g., `claude-sonnet-4-20250514`). | Use generic tags that might flip (e.g., `latest`). |
 | **Tool Definitions** | Keep tool schemas static and stable. | Dynamically generate tool lists per call. |
 | **Hooks/Context** | Disable dynamic hooks during experiments. | Allow hooks to inject timestamps/IDs into the prefix. |
+| **RAG Context** | Sort retrieved chunks by stable IDs when cache reuse matters. | Sort cacheable context by fluctuating relevance scores. |
+| **Schemas/JSON** | Canonicalize tool lists and JSON key order. | Let dict/map iteration produce different schema bytes. |
+| **Semantic Cache** | Use verified/adaptive policies or bypass risky queries. | Use one global similarity threshold for all requests. |
 | **Model Routing** | Stay on one model per conversation session. | Switch models mid-conversation. |
 
 ---
@@ -123,10 +176,13 @@ copilot --prompt "Help me refactor this function"
 1. **[ ]** Is my system prompt identical across calls?
 2. **[ ]** Are my tool definitions at the beginning and static?
 3. **[ ]** Did I remove dynamic data (dates/random seeds/session IDs) from the prefix?
-4. **[ ]** Am I within the TTL window? (Anthropic: ~5m, OpenAI: 5-10m)
-5. **[ ]** Am I using a model that supports caching? (Claude 3.5+, GPT-4o)
-6. **[ ]** Am I appending (not rewriting) in multi-turn conversations?
-7. **[ ]** Am I staying on one model per session?
+4. **[ ]** Are RAG chunks ordered deterministically if they are in the cacheable prefix?
+5. **[ ]** Are JSON/tool schemas canonicalized?
+6. **[ ]** Am I within the TTL window? (Anthropic: ~5m, OpenAI: 5-10m)
+7. **[ ]** Am I using a model that supports caching? (Claude 3.5+, GPT-4o)
+8. **[ ]** Am I appending (not rewriting) in multi-turn conversations?
+9. **[ ]** Am I staying on one model per session?
+10. **[ ]** Am I avoiding naive semantic caching for temporal, parameter-rich, or safety-critical requests?
 
 ---
 
@@ -148,7 +204,11 @@ GitHub Copilot is moving to **Usage-Based Billing** — every token has a price.
 ---
 
 ## Sources
-- Experimental harness: this repository (13 experiments)
-- HyDRA paper: [arXiv:2605.17106](https://arxiv.org/abs/2605.17106)
+- Experimental harness: this repository (17 experiments)
+- Prompt/prefix caching: `research/chapters/ch04-prompt-and-prefix-caching.md`
+- Semantic caching correctness: `research/chapters/ch05-semantic-caching.md`
+- Harness/tooling caching: `research/chapters/ch06-harness-and-tooling-caching.md`
+- Best practices and anti-patterns: `research/chapters/ch09-best-practices.md`
+- Cache-preserving routing / HyDRA: [arXiv:2605.17106](https://arxiv.org/abs/2605.17106)
 - GitHub Copilot UBB Resources: [fimdim.com/ghcp-ubb-resources](https://fimdim.com/ghcp-ubb-resources/)
 - GitHub Copilot Billing: [docs.github.com](https://docs.github.com/en/enterprise-cloud@latest/copilot/concepts/billing)
