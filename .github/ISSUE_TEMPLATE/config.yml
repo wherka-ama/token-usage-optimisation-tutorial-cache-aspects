@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability reporting
+    url: https://github.com/AmadeusITGroup/.github/blob/main/SECURITY.md
+    about: Please follow the organization security policy for vulnerabilities.
