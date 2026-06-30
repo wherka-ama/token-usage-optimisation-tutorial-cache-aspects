@@ -152,6 +152,36 @@ Output location: `$HOME/cache-experiments/results/multi-model/`
 - Append, don't modify, in multi-turn conversations.
 - Treat semantic caching as an approximate optimization unless it has verification/error guarantees.
 
+## Contributing
+
+Contributions are welcome. Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening an issue or pull request.
+
+## Maintainers
+
+- [`@wherka-ama`](https://github.com/wherka-ama)
+- [`@micheliknechtel`](https://github.com/micheliknechtel)
+
+## Governance & Release Process
+
+- Code ownership: [`.github/CODEOWNERS`](.github/CODEOWNERS)
+- Release process: [`RELEASING.md`](RELEASING.md)
+- Changelog: [`CHANGELOG.md`](CHANGELOG.md)
+
+## Security
+
+This project uses the organization-level security policy:
+
+- https://github.com/AmadeusITGroup/.github/blob/main/SECURITY.md
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE).
+
+## Contact
+
+For general repository topics, open a GitHub issue.
+For security vulnerabilities, follow the organization security policy linked above.
+
 ## Sources
 
 All sources are documented in `tutorial-plan.md` under **Part 2.6 Sources** and the academic research corpus under `research/`. Provider-specific TTL/pricing details are separated from academic claims in the tutorial plan.
