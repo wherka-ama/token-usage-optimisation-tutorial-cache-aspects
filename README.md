@@ -59,6 +59,38 @@ By default, the harness enables **Experiment Isolation**. This ensures that your
 - **Enabled (Default):** Sets a temporary `COPILOT_HOME`, unsets `COPILOT_SKILLS_DIRS`, etc.
 - **Toggle:** `export COPILOT_ISOLATION=false` before sourcing `setup.sh` to use your system config.
 
+## ⚠️ Cost Disclaimer (Please Read Before Running)
+
+This repository exists to help you **reduce** LLM costs over time — but running the experiments does consume paid tokens.
+
+Costs are **approximate** and depend on:
+
+- selected model(s)
+- prompt/output lengths
+- cache hit rate
+- how many experiments and repeats you run
+
+### Rough cost expectations (order-of-magnitude)
+
+- A single short experiment run is often from **cents** to **low tens of cents**.
+- `run-all.sh` can add up to **several dollars** on premium models.
+- `run-multi-model.sh` can multiply total spend significantly (same suite × number of models).
+
+### Default reference pricing used by `compare.py` (USD per 1M tokens)
+
+- `claude-sonnet-4.6`: input `3.00`, cached-read `0.30`, output `15.00`
+- `gpt-5.4`: input `2.50`, cached-read `1.25`, output `10.00`
+- `gemini-3.5-flash`: input `0.075`, cached-read `0.01875`, output `0.30`
+
+> These are estimator defaults, not billing guarantees. Always confirm with your provider's current pricing.
+
+### How to avoid surprise spend
+
+1. Start with `exp1` and `exp2` before running the full suite.
+2. Prefer cheaper models first (or pass your own `--pricing` file to `compare.py`).
+3. Avoid `run-multi-model.sh` until single-model results are stable.
+4. Monitor usage after each batch (`analyze.py`, `compare.py`, optional `ccusage`).
+
 3. Run a single experiment:
    ```bash
    bash exp2-cache-hit.sh
